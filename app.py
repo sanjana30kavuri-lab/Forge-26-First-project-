@@ -54,19 +54,68 @@ def call_ai(contents, json_mode=True):
                 time.sleep(1)
     return None
 
-st.set_page_config(page_title="Complaint Chaser", page_icon="📮", layout="centered")
-st.title("📮 Complaint Chaser")
-st.caption("File a civic complaint in minutes, and we keep chasing it until it moves.")
+st.set_page_config(
+    page_title="Complaint Chaser | Civic AI",
+    page_icon="📮",
+    layout="centered",
+    initial_sidebar_state="collapsed"
+)
+
+st.markdown("""
+<style>
+    .block-container {
+        max-width: 900px;
+        padding-top: 2.5rem;
+        padding-bottom: 3rem;
+    }
+
+    div[data-testid="stButton"] > button {
+        border-radius: 10px;
+        font-weight: 650;
+        min-height: 46px;
+    }
+
+    div[data-testid="stTextArea"] textarea,
+    div[data-testid="stTextInput"] input {
+        border-radius: 10px;
+    }
+
+    .hero {
+        background: linear-gradient(135deg, #EEF2FF, #F5F3FF);
+        border: 1px solid #C7D2FE;
+        border-radius: 18px;
+        padding: 1.5rem 1.7rem;
+        margin-bottom: 1.6rem;
+    }
+
+    .hero h1 {
+        margin: 0;
+        color: #312E81;
+    }
+
+    .hero p {
+        margin: 0.5rem 0 0;
+        color: #4B5563;
+        font-size: 1.05rem;
+    }
+</style>
+
+<div class="hero">
+    <h1>📮 Complaint Chaser</h1>
+    <p>Turn a civic problem into a clear complaint—and follow up until it moves.</p>
+</div>
+""", unsafe_allow_html=True)
 
 # ---------- Step 1 ----------
 st.subheader("1. Describe the problem")
+st.caption("Tell us what happened. Add a photo if it helps explain the problem.")
 problem = st.text_area("What's wrong?", placeholder="No water supply in our street for 4 days...")
 c1, c2 = st.columns(2)
 language = c1.selectbox("Letter language", ["English", "Telugu", "Hindi"])
 city = c2.text_input("City / area", placeholder="e.g. Rajahmundry")
 photo = st.file_uploader("Photo (optional)", type=["jpg", "jpeg", "png"])
 
-if st.button("Draft my complaint", type="primary"):
+if st.button("✨ Draft my complaint", type="primary", use_container_width=True):
      if not problem.strip():
         st.warning("Please describe the problem first.")
      elif len(problem.split()) < 4:
@@ -93,14 +142,17 @@ if st.button("Draft my complaint", type="primary"):
 # ---------- Step 2 ----------
 if "draft" in st.session_state:
     d = st.session_state.draft
+
     st.subheader("2. Review and file")
-    m1, m2 = st.columns([3, 1])
-    m1.markdown(f"**Department**\n\n{d.get('department', '-')}")
-    m2.markdown(f"**Severity**\n\n{d.get('severity', '-')}/5")
+    st.caption("Review the AI suggestion, edit the letter if needed, then choose how to file it.")
+
+    m1, m2 = st.columns([2, 1])
+    m1.metric("🏛️ Suggested department", d.get("department", "-"))
+    m2.metric("⚠️ Severity", f"{d.get('severity', '-')}/5")
+
     st.caption(d.get("severity_reason", ""))
     letter = st.text_area("Complaint letter (editable)", d.get("letter", ""), height=280)
-    to_email = st.text_input("Send to (use your own test inbox for the demo)")
-
+    to_email = st.text_input("Send to(use your own test inbox for the demo)")
     if st.button("File complaint & start tracking", type="primary"):
         cid = "CC-" + uuid.uuid4().hex[:6].upper()
         sent = False
