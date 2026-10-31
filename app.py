@@ -105,14 +105,15 @@ if "draft" in st.session_state:
         cid = "CC-" + uuid.uuid4().hex[:6].upper()
         sent = False
         if WEBHOOK_URL and to_email:
-            try:
-                requests.post(WEBHOOK_URL, timeout=15, json={
-                    "id": cid, "to": to_email,
-                    "subject": f"[{cid}] {d.get('subject', 'Complaint')}",
-                    "letter": letter})
-                sent = True
-            except Exception as e:
-                st.error(f"Could not reach n8n: {e}")
+                       try:
+                           r = requests.post(WEBHOOK_URL, timeout=15, json={
+                               "id": cid, "to": to_email,
+                               "subject": f"[{cid}] {d.get('subject', 'Complaint')}",
+                               "letter": letter})
+                           r.raise_for_status()
+                           sent = True
+                       except Exception as e:
+                        st.error(f"Could not reach n8n: {e}")
         st.session_state.filed = {"id": cid, "time": datetime.now().strftime("%d %b %Y, %I:%M %p"),
                                   "letter": letter, "sent": sent, "escalation": None,
                                   "dept": d.get("department")}
