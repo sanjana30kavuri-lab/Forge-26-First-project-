@@ -23,11 +23,22 @@ MODELS = ["gemini-3.8-flash", "gemini-3.5-flash-lite", "gemini-3.7-flash"]
 WEBHOOK_URL = secret("N8N_WEBHOOK_URL")
 
 SYSTEM = """You help citizens in India file civic complaints.
-Return ONLY JSON with keys: category, department, severity (integer 1-5),
-severity_reason, subject, letter, language.
-'letter' is a formal, polite complaint in the requested language.
-Use placeholders like [Your Name] and [Address] for unknown details.
-Never invent facts the user did not give."""
+Return ONLY JSON with these keys: needs_more_info (true/false), missing (list of short questions),
+category, department, severity (integer 1-5), severity_reason, subject, letter, language.
+
+If the message does not clearly say WHAT the problem is, set needs_more_info to true,
+put 1-3 short questions in "missing", and leave the other fields empty.
+Otherwise set needs_more_info to false and fill everything in.
+
+Rules:
+- department: the specific local body (for example "Municipal Corporation - Sanitation Wing"), not just "Government".
+- severity: 1 = minor inconvenience, 3 = affects daily life, 5 = immediate danger to health or safety.
+- severity_reason: one short sentence.
+- letter: a formal, polite complaint in the requested language, under 150 words.
+  Always mention the location and how long the problem has lasted, if the user gave them.
+  Use placeholders like [Your Name], [Address], [Phone] for details the user did not give.
+- Use ONLY facts the user gave. Do not describe conditions, causes or impacts they did not mention.
+- Never invent names, dates or numbers that the user did not provide."""
 
 def call_ai(contents, json_mode=True):
     cfg = types.GenerateContentConfig(
@@ -56,16 +67,24 @@ city = c2.text_input("City / area", placeholder="e.g. Rajahmundry")
 photo = st.file_uploader("Photo (optional)", type=["jpg", "jpeg", "png"])
 
 if st.button("Draft my complaint", type="primary"):
-    if not problem.strip():
+     if not problem.strip():
         st.warning("Please describe the problem first.")
-    else:
+     elif len(problem.split()) < 4:
+        st.session_state.pop("draft", None)
+        st.warning("Please add a few more details: what is the problem, where, and for how long?")
+     else:
         prompt = f"Problem: {problem}\nCity: {city}\nLetter language: {language}"
         contents = [prompt]
         if photo:
             contents = [types.Part.from_bytes(data=photo.getvalue(), mime_type=photo.type), prompt]
         with st.spinner("Drafting..."):
             data = call_ai(contents)
-        if data:
+        if data and data.get("needs_more_info"):
+            st.session_state.pop("draft", None)
+            st.warning("I need a bit more detail to write a proper complaint:")
+            for q in data.get("missing", []):
+                st.write("•", q)
+        elif data:
             st.session_state.draft = data
             st.session_state.pop("filed", None)
         else:
