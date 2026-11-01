@@ -1,5 +1,7 @@
 import os, json, time, uuid, re, html
-from datetime import datetime
+from datetime import datetime, timezone, timedelta
+
+IST = timezone(timedelta(hours=5, minutes=30))
 from concurrent.futures import ThreadPoolExecutor
 import requests
 import streamlit as st
@@ -640,14 +642,15 @@ def step2():
         sent = False
         if WEBHOOK_URL and recipients:
             try:
-                requests.post(WEBHOOK_URL, timeout=15, json={
+                r=requests.post(WEBHOOK_URL, timeout=15, json={
                     "id": cid, "to": ", ".join(recipients),
                     "subject": f"[{cid}] {d.get('subject', 'Complaint')}",
                     "letter": letter})
+                r.raise_for_status()
                 sent = True
             except Exception as ex:
                 st.error(t("n8n_err", err=ex))
-        filed = {"id": cid, "time": datetime.now().strftime("%d %b %Y, %I:%M %p"),
+        filed = {"id": cid, "time": datetime.now(IST).strftime("%d %b %Y, %I:%M %p"),
                  "letter": letter, "sent": sent, "escalation": None, "dept": dept,
                  "severity": sev, "recipients": recipients, "lang": d.get("_lang", "English")}
         st.session_state.filed = filed
