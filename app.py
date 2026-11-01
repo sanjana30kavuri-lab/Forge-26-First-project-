@@ -61,8 +61,8 @@ UI = {
         "warn_describe": "Please describe the problem first.",
         "warn_more": "Please add a few more details: what is the problem, where, and for how long?",
         "drafting": "Drafting and analysing...",
-        "need_more_info": "-If the problem is not a civic or public-service issue (for example a personal gadget or a private dispute), set needs_more_info to true and make the first item in missing one short sentence saying this tool is for civic issues such as water, roads, garbage, electricity or street lights, and asking the user to describe a public problem."
-                           "-Write every item in missing in the requested language.",
+        "need_more_info": "-Write every item in missing in the requested language.",
+        "not_civic": "This tool is only for civic issues such as water supply, roads, drainage, garbage, electricity or street lights. Please describe a public problem.",
         "ai_busy": "The AI is busy. Please try again in a minute.",
         "step2": "2. Review and file",
         "dept_lbl": "🏛️ Department responsible", "severity": "⚠️ Severity {n}/5",
@@ -121,7 +121,8 @@ UI = {
         "warn_describe": "దయచేసి ముందు సమస్యను వివరించండి.",
         "warn_more": "దయచేసి మరిన్ని వివరాలు ఇవ్వండి: సమస్య ఏమిటి, ఎక్కడ, ఎంత కాలంగా?",
         "drafting": "సిద్ధం చేస్తున్నాను, విశ్లేషిస్తున్నాను...",
-        "need_more": "సరైన ఫిర్యాదు రాయడానికి నాకు కొంచెం ఎక్కువ సమాచారం కావాలి:",
+        "need_more_info": "సరైన ఫిర్యాదు రాయడానికి నాకు కొంచెం ఎక్కువ సమాచారం కావాలి:",
+        "not_civic": "ఈ సాధనం నీటి సరఫరా, రోడ్లు, డ్రైనేజీ, చెత్త, విద్యుత్ లేదా వీధి దీపాలు వంటి పౌర సమస్యల కోసం మాత్రమే. దయచేసి ఒక ప్రజా సమస్యను వివరించండి.",
         "ai_busy": "AI ప్రస్తుతం బిజీగా ఉంది. దయచేసి ఒక నిమిషం తర్వాత మళ్ళీ ప్రయత్నించండి.",
         "step2": "2. సమీక్షించి దాఖలు చేయండి",
         "dept_lbl": "🏛️ బాధ్యత వహించే శాఖ", "severity": "⚠️ తీవ్రత {n}/5",
@@ -181,7 +182,8 @@ UI = {
         "warn_describe": "कृपया पहले समस्या बताइए।",
         "warn_more": "कृपया थोड़ा और विवरण दें: समस्या क्या है, कहाँ है और कितने समय से है?",
         "drafting": "तैयार कर रहे हैं और विश्लेषण कर रहे हैं...",
-        "need_more": "सही शिकायत लिखने के लिए मुझे थोड़ी और जानकारी चाहिए:",
+        "need_more_info": "सही शिकायत लिखने के लिए मुझे थोड़ी और जानकारी चाहिए:",
+        "not_civic": "यह टूल केवल नागरिक समस्याओं के लिए है, जैसे पानी की आपूर्ति, सड़कें, नाली, कचरा, बिजली या स्ट्रीट लाइट। कृपया किसी सार्वजनिक समस्या का वर्णन करें।",
         "ai_busy": "AI अभी व्यस्त है। कृपया एक मिनट बाद फिर कोशिश करें।",
         "step2": "2. जाँचें और दर्ज करें",
         "dept_lbl": "🏛️ ज़िम्मेदार विभाग", "severity": "⚠️ गंभीरता {n}/5",
@@ -235,9 +237,11 @@ def t(key, **kw):
 
 # ---------------------------------------------------------------- AI
 SYSTEM = """You help citizens in India file civic complaints.
-Return ONLY JSON with these keys: needs_more_info (true/false), missing (list of short questions),
+Return ONLY JSON with these keys:is_civic (true/false), needs_more_info (true/false), missing (list of short questions),
 category, department, severity (integer 1-5), severity_reason, subject, letter, language,
 possible_causes (list of 2-4 short strings), responsible (list of 2-4 objects with keys role, department, reason).
+
+First decide is_civic. A civic issue is a problem with a public service or shared public space: water supply, roads, drainage, garbage, electricity, street lights, public transport, public health or safety. Personal devices, private disputes, shopping, homework and general questions are NOT civic. If it is not civic, set is_civic to false, set needs_more_info to false, and leave every other field empty. Otherwise set is_civic to true.
 
 If the message does not clearly say WHAT the problem is, set needs_more_info to true,
 put 1-3 short questions in "missing", and leave the other fields empty.
@@ -550,7 +554,11 @@ def page_new():
                 contents = [types.Part.from_bytes(data=photo.getvalue(), mime_type=photo.type), prompt]
             with st.spinner(t("drafting")):
                 data = call_ai(contents)
-            if data and data.get("needs_more_info"):
+
+            if data and str(data.get("is_civic")).lower() == "false":
+                st.session_state.pop("draft", None)
+                st.error(t("not_civic"))
+            elif data and data.get("needs_more_info"):
                 st.session_state.pop("draft", None)
                 st.warning(t("need_more"))
                 for q in data.get("missing", []):
@@ -575,9 +583,9 @@ def step2():
     d = st.session_state.draft
     dept = d.get("department", "-")
     try:
-        sev = int(d.get("severity", 3))
+       sev = int(d.get("severity", 3))
     except Exception:
-        sev = 3
+       sev = 3
     col = SEV_COLORS.get(sev, "#d97706")
 
     st.subheader(t("step2"))
@@ -645,30 +653,29 @@ def step2():
     recipients = list(dict.fromkeys(recipients))
 
     if st.button(t("file_btn"), type="primary"):
-           if st.button(t("file_btn"), type="primary"):
                bad = [e for e in recipients if not EMAIL_RE.match(e.strip())]
                if not recipients or bad:
                   st.warning(t("bad_email"))
                   if bad:
                      st.caption(", ".join(bad))
                   st.stop()
-           cid = "CC-" + uuid.uuid4().hex[:6].upper()
-           sent = False
-    if WEBHOOK_URL and recipients:
-            try:
-                r=requests.post(WEBHOOK_URL, timeout=15, json={
-                    "id": cid, "to": ", ".join(recipients),
-                    "subject": f"[{cid}] {d.get('subject', 'Complaint')}",
-                    "letter": letter})
-                r.raise_for_status()
-                sent = True
-            except Exception as ex:
-                st.error(t("n8n_err", err=ex))
-    filed = {"id": cid, "time": datetime.now(IST).strftime("%d %b %Y, %I:%M %p"),
+               cid = "CC-" + uuid.uuid4().hex[:6].upper()
+               sent = False
+               if WEBHOOK_URL and recipients:
+                   try:
+                      r=requests.post(WEBHOOK_URL, timeout=15, json={
+                      "id": cid, "to": ", ".join(recipients),
+                      "subject": f"[{cid}] {d.get('subject', 'Complaint')}",
+                      "letter": letter})
+                      r.raise_for_status()
+                      sent = True
+                   except Exception as ex:
+                       st.error(t("n8n_err", err=ex))
+               filed = {"id": cid, "time": datetime.now(IST).strftime("%d %b %Y, %I:%M %p"),
                  "letter": letter, "sent": sent, "escalation": None, "dept": dept,
-                 "severity": sev, "recipients": recipients, "lang": d.get("_lang", "English")}    
-    st.session_state.filed = filed
-    st.session_state.history.append(filed)  # same object, so later updates show in history
+                  "severity": sev, "recipients": recipients, "lang": d.get("_lang", "English")}    
+               st.session_state.filed = filed
+               st.session_state.history.append(filed)  # same object, so later updates show in history
 
 
 def step3():
