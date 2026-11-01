@@ -1,0 +1,101 @@
+{
+  "name": "BWS Chatbot - Gemini",
+  "nodes": [
+    {
+      "parameters": {
+        "httpMethod": "POST",
+        "path": "bws-chat",
+        "responseMode": "responseNode",
+        "options": {
+          "allowedOrigins": "https://buildwithsanjana.com"
+        }
+      },
+      "id": "1a1a1a1a-0001-4a4a-8a8a-000000000001",
+      "name": "Webhook",
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 2,
+      "position": [240, 300],
+      "webhookId": "bws-chat-webhook"
+    },
+    {
+      "parameters": {
+        "jsCode": "// Build the Gemini request payload from the widget's incoming data\nconst body = $input.first().json.body || $input.first().json;\nconst message = (body.message || '').toString().trim();\nconst incomingHistory = Array.isArray(body.history) ? body.history : [];\nconst sessionId = body.sessionId || 'anonymous';\n\nconst SYSTEM_PROMPT = `You are the friendly AI assistant embedded on buildwithsanjana.com, ` +\n  `the portfolio site of Sanjana, a creative designer, video editor, and content creator. ` +\n  `Help visitors understand the services offered (video editing, content creation, graphic/creative ` +\n  `design, social media content), speak generally about the kind of work shown in the portfolio, and ` +\n  `guide interested visitors toward reaching out via the site's contact section to discuss their project. ` +\n  `Keep replies short and warm, 2-4 sentences. Never invent exact prices, availability dates, or client ` +\n  `names you don't know - if asked for specifics like that, say pricing/timelines depend on the project ` +\n  `and invite them to share details through the contact form so Sanjana can follow up personally.`;\n\n// Convert widget history (role: 'user' | 'bot') into Gemini's contents format (user / model)\nconst contents = incomingHistory\n  .filter((m) => m && m.text)\n  .slice(-16)\n  .map((m) => ({\n    role: m.role === 'user' ? 'user' : 'model',\n    parts: [{ text: String(m.text) }]\n  }));\n\n// Make sure the newest message is included as the final user turn\ncontents.push({ role: 'user', parts: [{ text: message }] });\n\nreturn [\n  {\n    json: {\n      sessionId,\n      message,\n      geminiBody: {\n        system_instruction: { parts: [{ text: SYSTEM_PROMPT }] },\n        contents,\n        generationConfig: {\n          temperature: 0.6,\n          maxOutputTokens: 300\n        }\n      }\n    }\n  }\n];"
+      },
+      "id": "1a1a1a1a-0002-4a4a-8a8a-000000000002",
+      "name": "Build Gemini Payload",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [460, 300]
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            { "name": "Content-Type", "value": "application/json" }
+          ]
+        },
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={{ JSON.stringify($json.geminiBody) }}",
+        "authentication": "genericCredentialType",
+        "genericAuthType": "httpHeaderAuth",
+        "options": {}
+      },
+      "id": "1a1a1a1a-0003-4a4a-8a8a-000000000003",
+      "name": "Call Gemini",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [680, 300],
+      "credentials": {
+        "httpHeaderAuth": {
+          "id": "REPLACE_WITH_YOUR_CREDENTIAL_ID",
+          "name": "Google AI Studio API Key"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "jsCode": "// Extract plain text reply from Gemini's response and fall back gracefully on error\nconst geminiResponse = $input.first().json;\nconst sessionId = $('Build Gemini Payload').first().json.sessionId;\n\nlet reply = \"Sorry, I'm having trouble responding right now - please try again in a moment.\";\n\ntry {\n  const text = geminiResponse.candidates[0].content.parts[0].text;\n  if (text && text.trim()) reply = text.trim();\n} catch (e) {\n  // keep fallback message; optionally inspect geminiResponse.error for debugging\n}\n\nreturn [{ json: { reply, sessionId } }];"
+      },
+      "id": "1a1a1a1a-0004-4a4a-8a8a-000000000004",
+      "name": "Extract Reply",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [900, 300]
+    },
+    {
+      "parameters": {
+        "respondWith": "json",
+        "responseBody": "={{ { reply: $json.reply } }}",
+        "options": {}
+      },
+      "id": "1a1a1a1a-0005-4a4a-8a8a-000000000005",
+      "name": "Respond to Webhook",
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1.2,
+      "position": [1120, 300]
+    }
+  ],
+  "connections": {
+    "Webhook": {
+      "main": [[{ "node": "Build Gemini Payload", "type": "main", "index": 0 }]]
+    },
+    "Build Gemini Payload": {
+      "main": [[{ "node": "Call Gemini", "type": "main", "index": 0 }]]
+    },
+    "Call Gemini": {
+      "main": [[{ "node": "Extract Reply", "type": "main", "index": 0 }]]
+    },
+    "Extract Reply": {
+      "main": [[{ "node": "Respond to Webhook", "type": "main", "index": 0 }]]
+    }
+  },
+  "active": false,
+  "settings": {
+    "executionOrder": "v1"
+  },
+  "pinData": {}
+}
