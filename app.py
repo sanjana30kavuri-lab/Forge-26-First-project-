@@ -645,7 +645,7 @@ def step2():
 
     recipients = []
     if res is None:
-        st.warning(t("search_unavail"))
+       pass 
     elif not res["officers"]:
         st.info(t("none_found") + " https://pgportal.gov.in")
     else:
@@ -655,7 +655,7 @@ def step2():
             if o["official"]:
                 badges.append(t("badge_off"))
             checked = st.checkbox(f"**{o['role']}** · {o['email']}  \n{' · '.join(badges)}",
-                                  value=o["verified"], key=f"off_{key}_{o['email']}")
+                                  value=False, key=f"off_{key}_{o['email']}")
             if checked:
                 recipients.append(o["email"])
         if res["sources"]:
