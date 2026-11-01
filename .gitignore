@@ -220,3 +220,7 @@ __marimo__/
 .streamlit/secrets.toml
 
 .agents/
+
+# Complaint Chaser user data
+complaints.db
+uploads/

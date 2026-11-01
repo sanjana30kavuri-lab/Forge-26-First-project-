@@ -1,15 +1,16 @@
 import os, json, time, uuid, re, html
 from datetime import datetime, timezone, timedelta
-
-IST = timezone(timedelta(hours=5, minutes=30))
 from concurrent.futures import ThreadPoolExecutor
+
 import requests
 import streamlit as st
-import re
-EMAIL_RE = re.compile(r"^[^@\s]+@[^@\s]+\.[^@\s]+$")
 from dotenv import load_dotenv
 from google import genai
 from google.genai import types
+
+import complaint_history as ch   # saved complaint history (database)
+
+IST = timezone(timedelta(hours=5, minutes=30))
 
 load_dotenv()
 
@@ -61,8 +62,7 @@ UI = {
         "warn_describe": "Please describe the problem first.",
         "warn_more": "Please add a few more details: what is the problem, where, and for how long?",
         "drafting": "Drafting and analysing...",
-        "need_more_info": "-Write every item in missing in the requested language.",
-        "not_civic": "This tool is only for civic issues such as water supply, roads, drainage, garbage, electricity or street lights. Please describe a public problem.",
+        "need_more": "I need a little more information to write a proper complaint:",
         "ai_busy": "The AI is busy. Please try again in a minute.",
         "step2": "2. Review and file",
         "dept_lbl": "🏛️ Department responsible", "severity": "⚠️ Severity {n}/5",
@@ -121,8 +121,7 @@ UI = {
         "warn_describe": "దయచేసి ముందు సమస్యను వివరించండి.",
         "warn_more": "దయచేసి మరిన్ని వివరాలు ఇవ్వండి: సమస్య ఏమిటి, ఎక్కడ, ఎంత కాలంగా?",
         "drafting": "సిద్ధం చేస్తున్నాను, విశ్లేషిస్తున్నాను...",
-        "need_more_info": "సరైన ఫిర్యాదు రాయడానికి నాకు కొంచెం ఎక్కువ సమాచారం కావాలి:",
-        "not_civic": "ఈ సాధనం నీటి సరఫరా, రోడ్లు, డ్రైనేజీ, చెత్త, విద్యుత్ లేదా వీధి దీపాలు వంటి పౌర సమస్యల కోసం మాత్రమే. దయచేసి ఒక ప్రజా సమస్యను వివరించండి.",
+        "need_more": "సరైన ఫిర్యాదు రాయడానికి నాకు కొంచెం ఎక్కువ సమాచారం కావాలి:",
         "ai_busy": "AI ప్రస్తుతం బిజీగా ఉంది. దయచేసి ఒక నిమిషం తర్వాత మళ్ళీ ప్రయత్నించండి.",
         "step2": "2. సమీక్షించి దాఖలు చేయండి",
         "dept_lbl": "🏛️ బాధ్యత వహించే శాఖ", "severity": "⚠️ తీవ్రత {n}/5",
@@ -182,8 +181,7 @@ UI = {
         "warn_describe": "कृपया पहले समस्या बताइए।",
         "warn_more": "कृपया थोड़ा और विवरण दें: समस्या क्या है, कहाँ है और कितने समय से है?",
         "drafting": "तैयार कर रहे हैं और विश्लेषण कर रहे हैं...",
-        "need_more_info": "सही शिकायत लिखने के लिए मुझे थोड़ी और जानकारी चाहिए:",
-        "not_civic": "यह टूल केवल नागरिक समस्याओं के लिए है, जैसे पानी की आपूर्ति, सड़कें, नाली, कचरा, बिजली या स्ट्रीट लाइट। कृपया किसी सार्वजनिक समस्या का वर्णन करें।",
+        "need_more": "सही शिकायत लिखने के लिए मुझे थोड़ी और जानकारी चाहिए:",
         "ai_busy": "AI अभी व्यस्त है। कृपया एक मिनट बाद फिर कोशिश करें।",
         "step2": "2. जाँचें और दर्ज करें",
         "dept_lbl": "🏛️ ज़िम्मेदार विभाग", "severity": "⚠️ गंभीरता {n}/5",
@@ -237,17 +235,19 @@ def t(key, **kw):
 
 # ---------------------------------------------------------------- AI
 SYSTEM = """You help citizens in India file civic complaints.
-Return ONLY JSON with these keys:is_civic (true/false), needs_more_info (true/false), missing (list of short questions),
+Return ONLY JSON with these keys: needs_more_info (true/false), missing (list of short questions),
 category, department, severity (integer 1-5), severity_reason, subject, letter, language,
 possible_causes (list of 2-4 short strings), responsible (list of 2-4 objects with keys role, department, reason).
-
-First decide is_civic. A civic issue is a problem with a public service or shared public space: water supply, roads, drainage, garbage, electricity, street lights, public transport, public health or safety. Personal devices, private disputes, shopping, homework and general questions are NOT civic. If it is not civic, set is_civic to false, set needs_more_info to false, and leave every other field empty. Otherwise set is_civic to true.
 
 If the message does not clearly say WHAT the problem is, set needs_more_info to true,
 put 1-3 short questions in "missing", and leave the other fields empty.
 Otherwise set needs_more_info to false and fill everything in.
 
 Rules:
+- If the problem is not a civic or public-service issue (for example a personal gadget or a private dispute),
+  set needs_more_info to true and make the first item in "missing" one short sentence saying this tool is for
+  civic issues such as water, roads, garbage, electricity or street lights, and asking the user to describe
+  a public problem.
 - department: the specific local body (for example "Municipal Corporation - Sanitation Wing"), not just "Government".
   Keep department names and role titles in English.
 - severity: 1 = minor inconvenience, 3 = affects daily life, 5 = immediate danger to health or safety.
@@ -315,8 +315,8 @@ def find_officers(city, dept):
     text = resp.text or ""
     sources = []
     try:
-        for ch in resp.candidates[0].grounding_metadata.grounding_chunks:
-            sources.append((ch.web.title or "source", ch.web.uri))
+        for chunk in resp.candidates[0].grounding_metadata.grounding_chunks:
+            sources.append((chunk.web.title or "source", chunk.web.uri))
     except Exception:
         pass
 
@@ -448,6 +448,23 @@ div[data-testid="stDownloadButton"] > button p { color: @text; }
 [data-testid="stPopoverBody"] { background: @panel; border: 1px solid @border; border-radius: 12px; }
 [data-testid="stPopoverBody"] p { color: @text; }
 [data-testid="stPopoverBody"] button[kind="primary"] p { color: #fff; }
+
+/* keep white text on the selected sidebar button in every state */
+section[data-testid="stSidebar"] button[kind="primary"],
+section[data-testid="stSidebar"] button[kind="primary"]:hover,
+section[data-testid="stSidebar"] button[kind="primary"]:focus,
+section[data-testid="stSidebar"] button[kind="primary"]:focus:not(:active),
+section[data-testid="stSidebar"] button[kind="primary"]:active,
+section[data-testid="stSidebar"] [data-testid="stBaseButton-primary"],
+section[data-testid="stSidebar"] [data-testid="stBaseButton-primary"]:hover,
+section[data-testid="stSidebar"] [data-testid="stBaseButton-primary"]:focus,
+section[data-testid="stSidebar"] [data-testid="stBaseButton-primary"]:active {
+    color: #ffffff !important;
+}
+section[data-testid="stSidebar"] button[kind="primary"] *,
+section[data-testid="stSidebar"] [data-testid="stBaseButton-primary"] * {
+    color: #ffffff !important;
+}
 </style>
 """
     if lang != "English":
@@ -470,7 +487,6 @@ textarea { line-height: 1.7; }
 st.set_page_config(page_title="Complaint Chaser | Civic AI", page_icon="📮",
                    layout="centered", initial_sidebar_state="expanded")
 
-st.session_state.setdefault("history", [])
 st.session_state.setdefault("settings", {"name": "", "phone": "", "address": "", "city": ""})
 st.session_state.setdefault("page", "new")
 st.session_state.setdefault("dark", False)
@@ -504,11 +520,10 @@ with st.sidebar:
             st.session_state.dark = not st.session_state.dark
             st.rerun()
 
-    hist = st.session_state.history
-    esc = sum(1 for h in hist if h["escalation"])
+    filed_n, esc_n = ch.sidebar_counts()   # real numbers from the database
     st.markdown(
-        f'<div class="statrow"><div class="stat"><b>{len(hist)}</b>{e(t("filed"))}</div>'
-        f'<div class="stat"><b>{esc}</b>{e(t("escalated"))}</div></div>', unsafe_allow_html=True)
+        f'<div class="statrow"><div class="stat"><b>{filed_n}</b>{e(t("filed"))}</div>'
+        f'<div class="stat"><b>{esc_n}</b>{e(t("escalated"))}</div></div>', unsafe_allow_html=True)
     st.markdown(
         f'<div class="card"><div class="lbl">{e(t("urgent_title"))}</div>'
         f'{t("urgent_body")}'
@@ -554,11 +569,7 @@ def page_new():
                 contents = [types.Part.from_bytes(data=photo.getvalue(), mime_type=photo.type), prompt]
             with st.spinner(t("drafting")):
                 data = call_ai(contents)
-
-            if data and str(data.get("is_civic")).lower() == "false":
-                st.session_state.pop("draft", None)
-                st.error(t("not_civic"))
-            elif data and data.get("needs_more_info"):
+            if data and data.get("needs_more_info"):
                 st.session_state.pop("draft", None)
                 st.warning(t("need_more"))
                 for q in data.get("missing", []):
@@ -567,6 +578,7 @@ def page_new():
                 data["letter"] = fill_placeholders(data.get("letter", ""), settings)
                 data["_city"] = city
                 data["_lang"] = language
+                data["_problem"] = problem          # saved to the history database later
                 data["_id"] = uuid.uuid4().hex[:8]
                 st.session_state.draft = data
                 st.session_state.pop("filed", None)
@@ -583,9 +595,9 @@ def step2():
     d = st.session_state.draft
     dept = d.get("department", "-")
     try:
-       sev = int(d.get("severity", 3))
+        sev = int(d.get("severity", 3))
     except Exception:
-       sev = 3
+        sev = 3
     col = SEV_COLORS.get(sev, "#d97706")
 
     st.subheader(t("step2"))
@@ -653,35 +665,50 @@ def step2():
     recipients = list(dict.fromkeys(recipients))
 
     if st.button(t("file_btn"), type="primary"):
-               bad = [e for e in recipients if not EMAIL_RE.match(e.strip())]
-               if not recipients or bad:
-                  st.warning(t("bad_email"))
-                  if bad:
-                     st.caption(", ".join(bad))
-                  st.stop()
-               cid = "CC-" + uuid.uuid4().hex[:6].upper()
-               sent = False
-               if WEBHOOK_URL and recipients:
-                   try:
-                      r=requests.post(WEBHOOK_URL, timeout=15, json={
-                      "id": cid, "to": ", ".join(recipients),
-                      "subject": f"[{cid}] {d.get('subject', 'Complaint')}",
-                      "letter": letter})
-                      r.raise_for_status()
-                      sent = True
-                   except Exception as ex:
-                       st.error(t("n8n_err", err=ex))
-               filed = {"id": cid, "time": datetime.now(IST).strftime("%d %b %Y, %I:%M %p"),
-                 "letter": letter, "sent": sent, "escalation": None, "dept": dept,
-                  "severity": sev, "recipients": recipients, "lang": d.get("_lang", "English")}    
-               st.session_state.filed = filed
-               st.session_state.history.append(filed)  # same object, so later updates show in history
+        bad = [x for x in recipients if not EMAIL_RE.fullmatch(x.strip())]
+        if not recipients or bad:
+            st.warning(t("bad_email"))
+            if bad:
+                st.caption(", ".join(bad))
+            st.stop()
+
+        # 1) save to the history database; this also creates the complaint ID
+        ref = ch.save_complaint(
+            description=d.get("_problem", ""),
+            city=d.get("_city", ""),
+            language=d.get("_lang", "English"),
+            letter=letter,
+            photo=st.session_state.get("photo"),
+        )
+
+        # 2) email it through n8n
+        sent, err = False, ""
+        if WEBHOOK_URL:
+            try:
+                r = requests.post(WEBHOOK_URL, timeout=15, json={
+                    "id": ref, "to": ", ".join(recipients),
+                    "subject": f"[{ref}] {d.get('subject', 'Complaint')}",
+                    "letter": letter})
+                r.raise_for_status()
+                sent = True
+            except Exception as ex:
+                err = str(ex)
+
+        st.session_state.filed = {
+            "id": ref, "db_id": int(ref.rsplit("-", 1)[1]),
+            "time": datetime.now(IST).strftime("%d %b %Y, %I:%M %p"),
+            "letter": letter, "sent": sent, "err": err, "escalation": None,
+            "dept": dept, "severity": sev, "recipients": recipients,
+            "lang": d.get("_lang", "English")}
+        st.rerun()   # refresh so the sidebar counters update
 
 
 def step3():
     f = st.session_state.filed
     st.subheader(t("step3"))
     st.success(t("filed_msg", id=f["id"], time=f["time"]) + ("" if f["sent"] else t("not_sent")))
+    if f.get("err"):
+        st.error(t("n8n_err", err=f["err"]))
     if f["recipients"]:
         st.caption(t("sent_to") + " " + ", ".join(f["recipients"]))
     st.markdown(f"**{t('status_lbl')}**")
@@ -694,6 +721,10 @@ def step3():
                 f"Write a firm but polite escalation letter to a senior officer, in {f['lang']}. "
                 f"No reply was received within 7 days for complaint {f['id']} to {f['dept']}. "
                 f"Original complaint:\n{f['letter']}", json_mode=False)
+        if f["escalation"] and not f.get("db_esc"):
+            ch.escalate(f["db_id"])      # mark it escalated in the history database
+            f["db_esc"] = True
+            st.rerun()                   # refresh the sidebar counters
     if f["escalation"]:
         st.text_area(t("esc_label"), f["escalation"], height=260, key=f"esc_{f['id']}")
         st.download_button(t("dl_esc"), f["escalation"], file_name=f"{f['id']}_escalation.txt")
@@ -702,21 +733,7 @@ def step3():
 # ---------------------------------------------------------------- History
 def page_history():
     st.subheader(t("hist_title"))
-    hist = st.session_state.history
-    if not hist:
-        st.info(t("hist_empty"))
-        return
-    for h in reversed(hist):
-        status = t("status_esc") if h["escalation"] else t("status_wait")
-        with st.expander(f"{h['id']} · {h['dept']} · {h['time']}"):
-            st.markdown(f"**{t('status_lbl')}:** {status}  \n**{t('severity_lbl')}:** {h['severity']}/5  \n"
-                        f"**{t('sent_to')}** {', '.join(h['recipients']) or t('not_sent_lbl')}")
-            st.text_area(t("letter_lbl"), h["letter"], height=200, disabled=True, key=f"hl_{h['id']}")
-            if h["escalation"]:
-                st.text_area(t("esc_label"), h["escalation"], height=200,
-                             disabled=True, key=f"he_{h['id']}")
-    st.download_button(t("dl_hist"), json.dumps(hist, indent=2, ensure_ascii=False),
-                       file_name="complaint_history.json")
+    ch.render_history_page()
 
 
 # ---------------------------------------------------------------- Settings
@@ -739,4 +756,3 @@ elif page == "history":
     page_history()
 else:
     page_settings()
-
