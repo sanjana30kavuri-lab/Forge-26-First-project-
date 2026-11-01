@@ -5,7 +5,7 @@
 **Team POWER DUO** · Forge ’26 (NxtWave Launchpad) · Theme 1: Civic Pulse, Digital Governance & Public Information
 
 🔗 **Live app:** https://complaintchaser.streamlit.app
-🎥 **Demo video:** <paste link> · 📊 **Pitch deck:** <paste link>
+🎥 **Demo video:** <https://drive.google.com/file/d/1ktbWTmkBS797cpYbiMTj68zSIPqDetb0/view?usp=drive_link> · 📊 **Pitch deck:** <https://drive.google.com/drive/folders/1qaub2CjjiDmcSRNjUV6y_BSSKYa5wYQ-?authuser=0>
 
 ## The problem
 People file a civic complaint (water, garbage, roads, street lights) once, hear nothing back, and give up. Writing a formal complaint in the right words, in the right language, to the right department is hard, and nobody follows up.
