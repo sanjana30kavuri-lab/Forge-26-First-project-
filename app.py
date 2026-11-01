@@ -345,8 +345,6 @@ def find_officers(city, dept):
     return {"officers": officers, "sources": sources[:3]}
 
 SCRIPT_RANGES = {"Telugu": (0x0C00, 0x0C7F), "Hindi": (0x0900, 0x097F)}
-
-
 def letter_in_language(text, language):
     """True if most letters in the text are in the script of the chosen language."""
     if language not in SCRIPT_RANGES:
@@ -771,6 +769,8 @@ def page_settings():
         city = st.text_input(t("set_city"), value=settings["city"])
         if st.form_submit_button(t("set_save"), type="primary"):
             settings.update(name=name, phone=phone, address=address, city=city)
+            if phone.strip():
+                ch.set_owner(phone)
             st.success(t("set_saved"))
 
 

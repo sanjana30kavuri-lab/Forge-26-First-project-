@@ -8,6 +8,7 @@ Drop this file next to your main app and:
 """
 from __future__ import annotations
 
+import hashlib
 import os
 import smtplib
 import sqlite3
@@ -81,11 +82,37 @@ def init_db() -> None:
         )
 
 
+def _owner_key(raw: str) -> str:
+    """Turn an email/phone into a private id, so the raw number never goes in the URL."""
+    salt = os.getenv("HISTORY_SALT", "complaint-chaser")
+    return "u-" + hashlib.sha256((salt + raw.strip().lower()).encode()).hexdigest()[:16]
+
+
+def set_owner(raw: str) -> None:
+    """Link this browser to a phone/email. The private id is kept in the page address
+    (?u=...), so the history survives a refresh."""
+    if not raw or not raw.strip():
+        return
+    key = _owner_key(raw)
+    st.session_state["owner"] = key
+    st.query_params["u"] = key
+
+
+def clear_owner() -> None:
+    st.session_state.pop("owner", None)
+    st.session_state.pop("guest_id", None)
+    st.query_params.clear()
+
+
 def get_owner() -> str:
-    """Email/phone the user entered, or a private id for this browser session,
+    """Saved id (session or page address), else a private id for this browser session,
     so visitors never see each other's complaints."""
     if st.session_state.get("owner"):
         return st.session_state["owner"]
+    q = st.query_params.get("u")
+    if q:
+        st.session_state["owner"] = q
+        return q
     return st.session_state.setdefault("guest_id", "guest-" + uuid.uuid4().hex[:10])
 
 
@@ -240,9 +267,7 @@ def _go_new_complaint() -> None:
 
 
 def _set_owner() -> None:
-    val = st.session_state.get("owner_input", "").strip().lower()
-    if val:
-        st.session_state["owner"] = val
+    set_owner(st.session_state.get("owner_input", ""))
 
 
 # ============================== Rendering ==================================
@@ -376,12 +401,17 @@ def render_history_page() -> None:
     owner = get_owner()
     if not st.session_state.get("owner"):
         with st.container(border=True):
-            st.markdown("**See your complaints on any device**")
+            st.markdown("**Keep your history after a refresh**")
             c1, c2 = st.columns([4, 1])
             c1.text_input("Email or phone", key="owner_input", label_visibility="collapsed",
                           placeholder="Your email or phone number")
             c2.button("Save", on_click=_set_owner, use_container_width=True)
-            st.caption("Without this, your complaints are visible only in this browser session. Refreshing the page starts a new one.")
+            st.caption("Save your number before you file. Without it, your complaints are visible "
+                       "only in this browser session and a refresh starts a new one.")
+    else:
+        st.caption("Your history is linked to your saved number. Bookmark this page to open it "
+                   "again after a refresh, or enter the same number on another device.")
+        st.button("Use a different number", on_click=clear_owner)
 
     all_rows = list_complaints(owner)
     if not all_rows:
