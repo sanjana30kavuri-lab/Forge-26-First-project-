@@ -62,12 +62,9 @@ UI = {
         "warn_describe": "Please describe the problem first.",
         "warn_more": "Please add a few more details: what is the problem, where, and for how long?",
         "drafting": "Drafting and analysing...",
-<<<<<<< HEAD
         "need_more": "I need a little more information to write a proper complaint:",
-=======
         "need_more": "I need a bit more detail to write a proper complaint:",
         "not_civic": "This tool is only for civic issues such as water supply, roads, drainage, garbage, electricity or street lights. Please describe a public problem.",
->>>>>>> b35337b53a755fd77d02d133942a92be0dc38fef
         "ai_busy": "The AI is busy. Please try again in a minute.",
         "step2": "2. Review and file",
         "dept_lbl": "🏛️ Department responsible", "severity": "⚠️ Severity {n}/5",
@@ -127,10 +124,7 @@ UI = {
         "warn_more": "దయచేసి మరిన్ని వివరాలు ఇవ్వండి: సమస్య ఏమిటి, ఎక్కడ, ఎంత కాలంగా?",
         "drafting": "సిద్ధం చేస్తున్నాను, విశ్లేషిస్తున్నాను...",
         "need_more": "సరైన ఫిర్యాదు రాయడానికి నాకు కొంచెం ఎక్కువ సమాచారం కావాలి:",
-<<<<<<< HEAD
-=======
         "not_civic": "ఈ సాధనం నీటి సరఫరా, రోడ్లు, డ్రైనేజీ, చెత్త, విద్యుత్ లేదా వీధి దీపాలు వంటి పౌర సమస్యల కోసం మాత్రమే. దయచేసి ఒక ప్రజా సమస్యను వివరించండి.",
->>>>>>> b35337b53a755fd77d02d133942a92be0dc38fef
         "ai_busy": "AI ప్రస్తుతం బిజీగా ఉంది. దయచేసి ఒక నిమిషం తర్వాత మళ్ళీ ప్రయత్నించండి.",
         "step2": "2. సమీక్షించి దాఖలు చేయండి",
         "dept_lbl": "🏛️ బాధ్యత వహించే శాఖ", "severity": "⚠️ తీవ్రత {n}/5",
@@ -191,10 +185,7 @@ UI = {
         "warn_more": "कृपया थोड़ा और विवरण दें: समस्या क्या है, कहाँ है और कितने समय से है?",
         "drafting": "तैयार कर रहे हैं और विश्लेषण कर रहे हैं...",
         "need_more": "सही शिकायत लिखने के लिए मुझे थोड़ी और जानकारी चाहिए:",
-<<<<<<< HEAD
-=======
         "not_civic": "यह टूल केवल नागरिक समस्याओं के लिए है, जैसे पानी की आपूर्ति, सड़कें, नाली, कचरा, बिजली या स्ट्रीट लाइट। कृपया किसी सार्वजनिक समस्या का वर्णन करें।",
->>>>>>> b35337b53a755fd77d02d133942a92be0dc38fef
         "ai_busy": "AI अभी व्यस्त है। कृपया एक मिनट बाद फिर कोशिश करें।",
         "step2": "2. जाँचें और दर्ज करें",
         "dept_lbl": "🏛️ ज़िम्मेदार विभाग", "severity": "⚠️ गंभीरता {n}/5",
