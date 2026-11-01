@@ -84,7 +84,7 @@ UI = {
         "sent_to": "Sent to:", "status_lbl": "Status",
         "flow_filed": "✅ Filed", "flow_wait": "⏳ Waiting for reply",
         "flow_esc": "🚨 Escalated", "flow_esc_pending": "⬜ Escalation",
-        "sim_btn": "⏩ Simulate 7 days passed with no reply",
+        "sim_btn": "⏩ Demo: skip the 7-day wait.",
         "esc_spin": "Drafting escalation...",
         "esc_label": "Escalation letter", "dl_esc": "Download escalation letter",
         "hist_title": "🗂️ Complaint history",
@@ -602,6 +602,7 @@ def step2():
 
     letter = st.text_area(t("letter_label"), d.get("letter", ""), height=360,
                           key=f"letter_{d.get('_id', 'x')}")
+    st.caption("AI-drafted. Please review and edit before sending.")
 
     st.markdown(f"#### {t('who_title')}")
     city = d.get("_city") or settings["city"] or "India"
