@@ -62,7 +62,6 @@ UI = {
         "warn_describe": "Please describe the problem first.",
         "warn_more": "Please add a few more details: what is the problem, where, and for how long?",
         "drafting": "Drafting and analysing...",
-        "need_more": "I need a little more information to write a proper complaint:",
         "need_more": "I need a bit more detail to write a proper complaint:",
         "not_civic": "This tool is only for civic issues such as water supply, roads, drainage, garbage, electricity or street lights. Please describe a public problem.",
         "ai_busy": "The AI is busy. Please try again in a minute.",
@@ -256,7 +255,9 @@ Rules:
   Keep department names and role titles in English.
 - severity: 1 = minor inconvenience, 3 = affects daily life, 5 = immediate danger to health or safety.
 - severity_reason: one short sentence.
-- letter: a formal, polite complaint in the requested "Letter language", under 150 words.
+- letter: a formal, polite complaint written ENTIRELY in the requested "Letter language", using that
+  language's own script (Telugu script for Telugu, Devanagari for Hindi). Never write the letter in
+  English unless the Letter language is English. Under 150 words.
   Always mention the location and how long the problem has lasted, if the user gave them.
   Use placeholders like [Your Name], [Address], [Phone] for details the user did not give.
 - Use ONLY facts the user gave in the letter. Do not describe conditions, causes or impacts they did not mention.
@@ -343,6 +344,16 @@ def find_officers(city, dept):
                          "official": email.endswith((".gov.in", ".nic.in"))})
     return {"officers": officers, "sources": sources[:3]}
 
+SCRIPT_RANGES = {"Telugu": (0x0C00, 0x0C7F), "Hindi": (0x0900, 0x097F)}
+
+
+def letter_in_language(text, language):
+    """True if most letters in the text are in the script of the chosen language."""
+    if language not in SCRIPT_RANGES:
+        return True
+    lo, hi = SCRIPT_RANGES[language]
+    letters = [c for c in text if c.isalpha()]
+    return bool(letters) and sum(lo <= ord(c) <= hi for c in letters) / len(letters) > 0.5
 
 def fill_placeholders(letter, s):
     for ph, key in [("[Your Name]", "name"), ("[Address]", "address"), ("[Phone]", "phone")]:
@@ -566,8 +577,9 @@ def page_new():
             st.session_state.pop("draft", None)
             st.warning(t("warn_more"))
         else:
-            prompt = (f"Problem: {problem[:1500]}\nCity: {city}\nLetter language: {language}\n"
-                      f"Interface language: {ui_lang()}")
+            prompt =(f"Problem: {problem[:1500]}\nCity: {city}\n"
+                    f"Letter language: {language} (write the whole letter in {language}, in its own script)\n"
+                    f"Interface language: {ui_lang()}")
             contents = [prompt]
             if photo:
                 contents = [types.Part.from_bytes(data=photo.getvalue(), mime_type=photo.type), prompt]
@@ -579,6 +591,14 @@ def page_new():
                 for q in data.get("missing", []):
                     st.write("•", q)
             elif data:
+                if not letter_in_language(data.get("letter", ""), language):
+                    fixed = call_ai(
+                        f"Translate this complaint letter into {language}. Keep the meaning and keep "
+                        f"placeholders like [Your Name], [Address], [Phone] unchanged. "
+                        f"Return only the translated letter.\n\n{data.get('letter', '')}",
+                        json_mode=False)
+                    if fixed:
+                        data["letter"] = fixed
                 data["letter"] = fill_placeholders(data.get("letter", ""), settings)
                 data["_city"] = city
                 data["_lang"] = language
@@ -645,7 +665,7 @@ def step2():
 
     recipients = []
     if res is None:
-       pass 
+        pass 
     elif not res["officers"]:
         st.info(t("none_found") + " https://pgportal.gov.in")
     else:
@@ -696,7 +716,7 @@ def step2():
                 r.raise_for_status()
                 sent = True
             except Exception as ex:
-                err = str(ex)
+                err = type(ex).__name__
 
         st.session_state.filed = {
             "id": ref, "db_id": int(ref.rsplit("-", 1)[1]),

@@ -82,7 +82,11 @@ def init_db() -> None:
 
 
 def get_owner() -> str:
-    return st.session_state.get("owner") or "guest"
+    """Email/phone the user entered, or a private id for this browser session,
+    so visitors never see each other's complaints."""
+    if st.session_state.get("owner"):
+        return st.session_state["owner"]
+    return st.session_state.setdefault("guest_id", "guest-" + uuid.uuid4().hex[:10])
 
 
 def guess_category(text: str) -> str:
@@ -370,14 +374,14 @@ def render_history_page() -> None:
     st.markdown(CSS, unsafe_allow_html=True)
 
     owner = get_owner()
-    if owner == "guest":
+    if not st.session_state.get("owner"):
         with st.container(border=True):
             st.markdown("**See your complaints on any device**")
             c1, c2 = st.columns([4, 1])
             c1.text_input("Email or phone", key="owner_input", label_visibility="collapsed",
                           placeholder="Your email or phone number")
             c2.button("Save", on_click=_set_owner, use_container_width=True)
-            st.caption("Without this, your complaints are saved only for this browser as a guest.")
+            st.caption("Without this, your complaints are visible only in this browser session. Refreshing the page starts a new one.")
 
     all_rows = list_complaints(owner)
     if not all_rows:
