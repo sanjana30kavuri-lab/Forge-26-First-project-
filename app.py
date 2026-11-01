@@ -41,6 +41,7 @@ UI = {
         "hero_sub": "Turn a civic problem into a clear complaint—and follow up until it moves.",
         "nav_new": "New complaint", "nav_history": "Complaint history", "nav_settings": "Settings",
         "language_lbl": "Language",
+        "prefs": "Preferences", "brand_tag": "Civic AI assistant",
         "filed": "Filed", "escalated": "Escalated",
         "urgent_title": "Urgent danger?",
         "urgent_body": "Call <b>112</b>, the national emergency number.",
@@ -98,6 +99,7 @@ UI = {
         "hero_sub": "పౌర సమస్యను స్పష్టమైన ఫిర్యాదుగా మార్చండి—అది పరిష్కారమయ్యే వరకు వెంటాడండి.",
         "nav_new": "కొత్త ఫిర్యాదు", "nav_history": "ఫిర్యాదుల చరిత్ర", "nav_settings": "సెట్టింగ్స్",
         "language_lbl": "భాష",
+        "prefs": "ప్రాధాన్యతలు", "brand_tag": "పౌర AI సహాయకుడు",
         "filed": "దాఖలు", "escalated": "ఉన్నత స్థాయికి",
         "urgent_title": "అత్యవసర ప్రమాదమా?",
         "urgent_body": "జాతీయ అత్యవసర నంబర్ <b>112</b>కు కాల్ చేయండి.",
@@ -156,6 +158,7 @@ UI = {
         "hero_sub": "नागरिक समस्या को स्पष्ट शिकायत में बदलें—और समाधान होने तक पीछा करें।",
         "nav_new": "नई शिकायत", "nav_history": "शिकायत इतिहास", "nav_settings": "सेटिंग्स",
         "language_lbl": "भाषा",
+        "prefs": "प्राथमिकताएँ", "brand_tag": "नागरिक AI सहायक",
         "filed": "दर्ज", "escalated": "आगे भेजी",
         "urgent_title": "तत्काल खतरा?",
         "urgent_body": "राष्ट्रीय आपातकालीन नंबर <b>112</b> पर कॉल करें।",
@@ -337,11 +340,11 @@ def theme_css(dark, lang="English"):
     if dark:
         v = dict(bg="#0E1117", panel="#1A1D27", text="#F3F4F6", sub="#9CA3AF", border="#2F3445",
                  input="#232634", hero1="#1E1B4B", hero2="#2E1065", herob="#4338CA",
-                 herot="#C7D2FE", accent="#818CF8")
+                 herot="#C7D2FE", accent="#818CF8", tint="#2B3050", themeico="☀️")
     else:
         v = dict(bg="#FFFFFF", panel="#F8FAFC", text="#111827", sub="#4B5563", border="#E5E7EB",
                  input="#F3F4F6", hero1="#EEF2FF", hero2="#F5F3FF", herob="#C7D2FE",
-                 herot="#312E81", accent="#4F46E5")
+                 herot="#312E81", accent="#4F46E5", tint="#E0E7FF", themeico="🌙")
     css = """
 <style>
 @import url('https://fonts.googleapis.com/css2?family=Noto+Sans+Telugu:wght@400;500;600;700&family=Noto+Sans+Devanagari:wght@400;500;600;700&display=swap');
@@ -380,29 +383,55 @@ div[data-testid="stDownloadButton"] > button p { color: @text; }
 .role { font-weight: 700; }
 .small { color: @sub; font-size: .9rem; }
 
-/* ---------- sidebar: one consistent look for every control ---------- */
+/* ---------- sidebar ---------- */
 [data-testid="stSidebar"] [data-testid="stVerticalBlock"] { gap: .6rem; }
+.brand { display: flex; align-items: center; gap: .8rem; padding: .3rem 0 1rem; }
+.logo { width: 46px; height: 46px; flex: 0 0 46px; border-radius: 14px; font-size: 1.55rem;
+    display: flex; align-items: center; justify-content: center;
+    background: linear-gradient(135deg, #6366F1, #8B5CF6); box-shadow: 0 6px 14px rgba(99,102,241,.35); }
+.bname { font-size: 1.2rem; font-weight: 800; line-height: 1.15; color: @text; }
+.btag { font-size: .78rem; color: @sub; margin-top: .15rem; }
+
 [data-testid="stSidebar"] div[data-testid="stButton"] > button,
-[data-testid="stSidebar"] [data-testid="stPopover"] > button,
 [data-testid="stSidebar"] [data-testid="stPopover"] button {
-    width: 100%; min-height: 48px; border-radius: 10px; padding: 0 1rem; margin: 0;
-    justify-content: flex-start !important; text-align: left; }
+    width: 100%; min-height: 50px; border-radius: 12px; padding: 0 .7rem 0 1rem; margin: 0;
+    display: flex; align-items: center; justify-content: flex-start !important; text-align: left;
+    transition: border-color .15s, box-shadow .15s; }
 [data-testid="stSidebar"] div[data-testid="stButton"] > button > div,
-[data-testid="stSidebar"] [data-testid="stPopover"] button > div {
-    justify-content: flex-start !important; text-align: left; }
+[data-testid="stSidebar"] [data-testid="stPopover"] button > div:first-child {
+    flex: 1; justify-content: flex-start !important; text-align: left; }
 [data-testid="stSidebar"] div[data-testid="stButton"] > button p,
 [data-testid="stSidebar"] [data-testid="stPopover"] button p {
-    font-size: 1rem; font-weight: 600; text-align: left; margin: 0; color: @text; }
-[data-testid="stSidebar"] [data-testid="stPopover"] button {
-    background: @panel; border: 1px solid @border; }
+    font-size: 1rem; font-weight: 650; text-align: left; margin: 0; color: @text; }
+[data-testid="stSidebar"] [data-testid="stPopover"] button { background: @panel; border: 1px solid @border; }
 [data-testid="stSidebar"] button[kind="primary"] p { color: #fff; }
-[data-testid="stSidebar"] h3 { margin: 0 0 .2rem; padding: 0; font-weight: 700; }
-.side-hr { border: none; border-top: 1px solid @border; margin: .15rem 0; }
+[data-testid="stSidebar"] button:hover { border-color: @accent; box-shadow: 0 2px 10px rgba(99,102,241,.18); }
+
+/* emoji tile on the right side of each button */
+[data-testid="stSidebar"] div[data-testid="stButton"] > button::after,
+[data-testid="stSidebar"] [data-testid="stPopover"] button::after {
+    content: var(--ico, ""); margin-left: auto; flex: 0 0 34px; width: 34px; height: 34px;
+    display: flex; align-items: center; justify-content: center; font-size: 1.2rem;
+    border-radius: 10px; background: @tint; }
+[data-testid="stSidebar"] button[kind="primary"]::after { background: rgba(255,255,255,.25); }
+.st-key-nav_new { --ico: "📝"; }
+.st-key-nav_history { --ico: "🗂️"; }
+.st-key-nav_settings { --ico: "⚙️"; }
+.st-key-side_prefs { --ico: "🌐"; }
+.st-key-theme_btn { --ico: "@themeico"; }
+
+/* preferences box */
+.st-key-side_prefs { background: @bg; border: 1px solid @border; border-radius: 16px;
+    padding: .85rem; margin-top: .4rem; }
+.st-key-side_prefs [data-testid="stVerticalBlock"], .st-key-side_prefs { gap: .55rem; }
+.st-key-side_prefs .lbl { margin: 0 0 .1rem .15rem; }
+
+/* stats and emergency card */
 [data-testid="stSidebar"] .card, [data-testid="stSidebar"] .statrow { margin: 0; }
-[data-testid="stSidebar"] .card { border-radius: 10px; padding: .9rem 1rem; }
-.statrow { display: flex; gap: .6rem; }
-.stat { flex: 1; background: @bg; border: 1px solid @border; border-radius: 10px;
-    text-align: center; padding: .55rem .4rem; font-size: .85rem; color: @text; }
+[data-testid="stSidebar"] .card { border-radius: 14px; padding: .9rem 1rem; }
+.statrow { display: flex; gap: .6rem; padding-bottom: 1rem; margin-top: .4rem; }
+.stat { flex: 1; background: @bg; border: 1px solid @border; border-radius: 12px;
+    text-align: center; padding: .6rem .4rem; font-size: .85rem; color: @text; }
 .stat b { display: block; font-size: 1.4rem; }
 [data-testid="stPopoverBody"] { background: @panel; border: 1px solid @border; border-radius: 12px; }
 [data-testid="stPopoverBody"] p { color: @text; }
@@ -438,25 +467,30 @@ settings = st.session_state.settings
 PAGES = ["new", "history", "settings"]
 
 with st.sidebar:
-    st.markdown("### Complaint Chaser")
-    with st.popover(t("language_lbl"), use_container_width=True):
-        for L in LANGS:
-            if st.button(LANG_NAMES[L], key=f"lang_{L}", use_container_width=True,
-                         type="primary" if L == ui_lang() else "secondary"):
-                st.session_state.ui_lang = L
-                st.rerun()
-    if st.button(t("theme_light") if st.session_state.dark else t("theme_dark"), key="theme_btn",
-                 use_container_width=True):
-        st.session_state.dark = not st.session_state.dark
-        st.rerun()
-    st.markdown('<hr class="side-hr">', unsafe_allow_html=True)
+    st.markdown(
+        f'<div class="brand"><div class="logo">📮</div><div>'
+        f'<div class="bname">Complaint Chaser</div>'
+        f'<div class="btag">{e(t("brand_tag"))}</div></div></div>', unsafe_allow_html=True)
+
     for p in PAGES:
         active = st.session_state.page == p
         if st.button(t("nav_" + p), key=f"nav_{p}", type="primary" if active else "secondary",
                      use_container_width=True):
             st.session_state.page = p
             st.rerun()
-    st.markdown('<hr class="side-hr">', unsafe_allow_html=True)
+
+    with st.container(key="side_prefs"):
+        st.markdown(f'<div class="lbl">{e(t("prefs"))}</div>', unsafe_allow_html=True)
+        with st.popover(t("language_lbl"), use_container_width=True):
+            for L in LANGS:
+                if st.button(LANG_NAMES[L], key=f"lang_{L}", use_container_width=True,
+                             type="primary" if L == ui_lang() else "secondary"):
+                    st.session_state.ui_lang = L
+                    st.rerun()
+        if st.button(t("theme_light") if st.session_state.dark else t("theme_dark"),
+                     key="theme_btn", use_container_width=True):
+            st.session_state.dark = not st.session_state.dark
+            st.rerun()
 
     hist = st.session_state.history
     esc = sum(1 for h in hist if h["escalation"])
@@ -681,3 +715,4 @@ elif page == "history":
     page_history()
 else:
     page_settings()
+
