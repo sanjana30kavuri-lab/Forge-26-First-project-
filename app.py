@@ -5,6 +5,8 @@ IST = timezone(timedelta(hours=5, minutes=30))
 from concurrent.futures import ThreadPoolExecutor
 import requests
 import streamlit as st
+import re
+EMAIL_RE = re.compile(r"^[^@\s]+@[^@\s]+\.[^@\s]+$")
 from dotenv import load_dotenv
 from google import genai
 from google.genai import types
@@ -59,7 +61,8 @@ UI = {
         "warn_describe": "Please describe the problem first.",
         "warn_more": "Please add a few more details: what is the problem, where, and for how long?",
         "drafting": "Drafting and analysing...",
-        "need_more": "I need a bit more detail to write a proper complaint:",
+        "need_more_info": "-If the problem is not a civic or public-service issue (for example a personal gadget or a private dispute), set needs_more_info to true and make the first item in missing one short sentence saying this tool is for civic issues such as water, roads, garbage, electricity or street lights, and asking the user to describe a public problem."
+                           "-Write every item in missing in the requested language.",
         "ai_busy": "The AI is busy. Please try again in a minute.",
         "step2": "2. Review and file",
         "dept_lbl": "🏛️ Department responsible", "severity": "⚠️ Severity {n}/5",
@@ -77,6 +80,7 @@ UI = {
         "sources": "Sources:",
         "extra_label": "Add other email addresses (optional, comma separated)",
         "file_btn": "File complaint & start tracking",
+        "bad_email": "Please enter at least one valid email address, like name@example.com.",
         "n8n_err": "Could not reach n8n: {err}",
         "step3": "3. Track",
         "filed_msg": "Complaint {id} filed on {time}",
@@ -135,6 +139,7 @@ UI = {
         "sources": "మూలాలు:",
         "extra_label": "ఇతర ఈమెయిల్ చిరునామాలు జోడించండి (ఐచ్ఛికం, కామాలతో వేరు చేయండి)",
         "file_btn": "ఫిర్యాదు దాఖలు చేసి ట్రాకింగ్ ప్రారంభించు",
+        "bad_email": "దయచేసి కనీసం ఒక సరైన ఈమెయిల్ చిరునామాను నమోదు చేయండి, ఉదా. name@example.com.",
         "n8n_err": "n8nను చేరుకోలేకపోయాం: {err}",
         "step3": "3. ట్రాక్ చేయండి",
         "filed_msg": "ఫిర్యాదు {id} {time}న దాఖలైంది",
@@ -194,6 +199,7 @@ UI = {
         "sources": "स्रोत:",
         "extra_label": "अन्य ईमेल पते जोड़ें (वैकल्पिक, कॉमा से अलग करें)",
         "file_btn": "शिकायत दर्ज करें और ट्रैकिंग शुरू करें",
+        "bad_email": "कृपया कम से कम एक सही ईमेल पता दर्ज करें, जैसे name@example.com।",
         "n8n_err": "n8n से संपर्क नहीं हो सका: {err}",
         "step3": "3. ट्रैक करें",
         "filed_msg": "शिकायत {id} {time} को दर्ज हुई",
@@ -639,9 +645,16 @@ def step2():
     recipients = list(dict.fromkeys(recipients))
 
     if st.button(t("file_btn"), type="primary"):
-        cid = "CC-" + uuid.uuid4().hex[:6].upper()
-        sent = False
-        if WEBHOOK_URL and recipients:
+           if st.button(t("file_btn"), type="primary"):
+               bad = [e for e in recipients if not EMAIL_RE.match(e.strip())]
+               if not recipients or bad:
+                  st.warning(t("bad_email"))
+                  if bad:
+                     st.caption(", ".join(bad))
+                  st.stop()
+           cid = "CC-" + uuid.uuid4().hex[:6].upper()
+           sent = False
+    if WEBHOOK_URL and recipients:
             try:
                 r=requests.post(WEBHOOK_URL, timeout=15, json={
                     "id": cid, "to": ", ".join(recipients),
@@ -651,11 +664,11 @@ def step2():
                 sent = True
             except Exception as ex:
                 st.error(t("n8n_err", err=ex))
-        filed = {"id": cid, "time": datetime.now(IST).strftime("%d %b %Y, %I:%M %p"),
+    filed = {"id": cid, "time": datetime.now(IST).strftime("%d %b %Y, %I:%M %p"),
                  "letter": letter, "sent": sent, "escalation": None, "dept": dept,
-                 "severity": sev, "recipients": recipients, "lang": d.get("_lang", "English")}
-        st.session_state.filed = filed
-        st.session_state.history.append(filed)  # same object, so later updates show in history
+                 "severity": sev, "recipients": recipients, "lang": d.get("_lang", "English")}    
+    st.session_state.filed = filed
+    st.session_state.history.append(filed)  # same object, so later updates show in history
 
 
 def step3():
